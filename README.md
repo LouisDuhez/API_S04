@@ -1,6 +1,6 @@
 Voici une version améliorée et formatée de votre documentation pour l'API PHP de Gestion des Utilisateurs et Réservations :
 
-# Documentation de l'API PHP de Gestion des Utilisateurs et Réservations
+# Documentation de l'API PHP pour Marie Curie, Ombre et Lumière
 
 ## Introduction
 Cette API permet la gestion des utilisateurs et des réservations à travers des requêtes HTTP. Elle est développée en PHP et utilise une base de données MySQL.
