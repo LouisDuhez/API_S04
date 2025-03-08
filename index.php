@@ -110,16 +110,17 @@ function handleReservation ($pdo, $request_method, $path_info) {
         case 'GET' :
             if(isset($path_info[1])) {
                 $id = intval($path_info[1]);
-                $stmt = $pdo->prepare("SELECT * FROM reservation WHERE reservation_id=:id");
+                $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id WHERE reservation_id=:id");
                 $stmt->execute(['id' => $id]);
                 $reservation = $stmt->fetch(PDO::FETCH_ASSOC);
                 echo json_encode($reservation);
             } else {
-                $stmt = $pdo->prepare("SELECT * FROM reservation");
+                $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id");
                 $stmt->execute();
                 $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 echo json_encode($reservations);
             }
+            break;
         
         case 'PUT' :
             $id = intval($path_info[1]);
@@ -157,20 +158,20 @@ function handleReservation ($pdo, $request_method, $path_info) {
 }
 
 
-//Partie sécurité 
+// //Partie sécurité 
 
-// On crée le header
-$header = [
-    'typ' => 'JWT',
-    'alg' => 'HS256'
-];
+// // On crée le header
+// $header = [
+//     'typ' => 'JWT',
+//     'alg' => 'HS256'
+// ];
 
-// On crée le contenu (payload)
-$payload = [
-];
+// // On crée le contenu (payload)
+// $payload = [
+// ];
 
-$jwt = new JWT();
+// $jwt = new JWT();
 
-$token = $jwt->generate($header, $payload, SECRET);
+// $token = $jwt->generate($header, $payload, SECRET);
 
-// echo $token;
+// // echo $token;
