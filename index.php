@@ -14,6 +14,56 @@ try {
     echo 'Connexion échouée : ' . $e->getMessage();
 }
 
+// Fonction pour vérifier le token JWT
+function verifyJWT() {
+    // On vérifie si on reçoit un token
+    if(isset($_SERVER['Authorization'])){
+        $token = trim($_SERVER['Authorization']);
+    } elseif(isset($_SERVER['HTTP_AUTHORIZATION'])){
+        $token = trim($_SERVER['HTTP_AUTHORIZATION']);
+    } elseif(function_exists('apache_request_headers')){
+        $requestHeaders = apache_request_headers();
+        if(isset($requestHeaders['Authorization'])){
+            $token = trim($requestHeaders['Authorization']);
+        }
+    }
+
+    // On vérifie si la chaine commence par "Bearer "
+    if(!isset($token) || !preg_match('/Bearer\s(\S+)/', $token, $matches)){
+        http_response_code(400);
+        echo json_encode(['message' => 'Token introuvable']);
+        exit;
+    }
+
+    // On extrait le token
+    $token = str_replace('Bearer ', '', $token);
+
+    require_once 'includes/config.php';
+    require_once 'classes/JWT.php';
+
+    $jwt = new JWT();
+
+    // On vérifie la validité
+    if(!$jwt->isValid($token)){
+        http_response_code(400);
+        echo json_encode(['message' => 'Token invalide']);
+        exit;
+    }
+
+    // On vérifie la signature
+    if(!$jwt->check($token, SECRET)){
+        http_response_code(403);
+        echo json_encode(['message' => 'Le token est invalide']);
+        exit;
+    }
+
+    // On vérifie l'expiration
+    if($jwt->isExpired($token)){
+        http_response_code(403);
+        echo json_encode(['message' => 'Le token a expiré']);
+        exit;
+    }
+}
 
 $request_method = $_SERVER["REQUEST_METHOD"];
 $path_info = isset($_SERVER['PATH_INFO']) ? explode('/', trim($_SERVER['PATH_INFO'], '/')) : [];
@@ -26,12 +76,41 @@ switch($path_info[0]) {
     case 'reservations':
         handleReservation($pdo, $request_method, $path_info);
         break;
+    case 'key' : 
+        handleKey($pdo, $request_method);
+        break;
     default:
         header("HTTP/1.1 404 Not Found");
         echo json_encode(["message" => "Endpoint not found"]);
         break;
 }
 
+function handleKey($pdo, $request_method) {
+    if($request_method === 'POST') {
+        $data = json_decode(file_get_contents('php://input'), true);
+        if(isset($data['login']) && isset($data['mdp']) ) {
+            if($data['login'] == LOGIN) {
+                if(password_verify(MDP, $data['mdp'])) {
+                    $jwt = new JWT();
+                    $token = $jwt->generate([
+                        'typ' => 'JWT',
+                        'alg' => 'HS256'
+                        ],[],SECRET, 3600);
+                    echo json_encode(['token' => $token]);
+                }else {
+                    http_response_code(401);
+                    echo json_encode(['message' => 'Invalid mdp']);
+                }
+            } else {
+                http_response_code(401);
+                echo json_encode(['message' => 'Invalid login']);
+            }
+        }
+    }else {
+        http_response_code(405);
+        echo json_encode(['message' => 'Method not allowed']);
+    }
+}
 
 function handleUsers ($pdo, $request_method, $path_info) {
     switch($request_method) {
@@ -57,6 +136,7 @@ function handleUsers ($pdo, $request_method, $path_info) {
             echo json_encode($json);
             break;
         case 'GET' : 
+            verifyJWT();
             if(isset($path_info[1])) {
                 if ($path_info[1] === 'count') {
                     $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM user");
@@ -111,38 +191,39 @@ function handleReservation ($pdo, $request_method, $path_info) {
             }
             echo json_encode($json);
             break;
-            case 'GET' :
-                if(isset($path_info[1])) {
-                    if ($path_info[1] === 'count') {
-                        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM reservation");
-                        $stmt->execute();
-                        $count = $stmt->fetch(PDO::FETCH_ASSOC);
-                        echo json_encode($count);
-                        return;
-                    } 
-                    if($path_info[1] === 'sum') {
-                        $stmt = $pdo->prepare("SELECT SUM(reservation_nb_student) as sum_student, SUM(reservation_nb_normal) as sum_normal FROM reservation");
-                        $stmt->execute();
-                        $sums = $stmt->fetch(PDO::FETCH_ASSOC);
-                        echo json_encode($sums);
-                        return;
-                    }
-                    else {
-                        $id = intval($path_info[1]);
-                        $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id WHERE reservation_id=:id");
-                        $stmt->execute(['id' => $id]);
-                        $reservation = $stmt->fetch(PDO::FETCH_ASSOC);
-                        echo json_encode($reservation);
-                        return;
-                    }
-                } else {
-                    $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id");
+        case 'GET' :
+            verifyJWT();
+            if(isset($path_info[1])) {
+                if ($path_info[1] === 'count') {
+                    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM reservation");
                     $stmt->execute();
-                    $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    echo json_encode($reservations);
+                    $count = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode($count);
+                    return;
+                } 
+                if($path_info[1] === 'sum') {
+                    $stmt = $pdo->prepare("SELECT SUM(reservation_nb_student) as sum_student, SUM(reservation_nb_normal) as sum_normal FROM reservation");
+                    $stmt->execute();
+                    $sums = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode($sums);
                     return;
                 }
-                break;
+                else {
+                    $id = intval($path_info[1]);
+                    $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id WHERE reservation_id=:id");
+                    $stmt->execute(['id' => $id]);
+                    $reservation = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode($reservation);
+                    return;
+                }
+            } else {
+                $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id");
+                $stmt->execute();
+                $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode($reservations);
+                return;
+            }
+            break;
         
         case 'PUT' :
             $id = intval($path_info[1]);
@@ -178,22 +259,3 @@ function handleReservation ($pdo, $request_method, $path_info) {
             break;
     }
 }
-
-
-// //Partie sécurité 
-
-// // On crée le header
-// $header = [
-//     'typ' => 'JWT',
-//     'alg' => 'HS256'
-// ];
-
-// // On crée le contenu (payload)
-// $payload = [
-// ];
-
-// $jwt = new JWT();
-
-// $token = $jwt->generate($header, $payload, SECRET);
-
-// // echo $token;
