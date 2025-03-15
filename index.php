@@ -58,18 +58,22 @@ function handleUsers ($pdo, $request_method, $path_info) {
             break;
         case 'GET' : 
             if(isset($path_info[1])) {
-                $id = intval($path_info[1]);
-                $stmt = $pdo->prepare("SELECT * FROM user WHERE user_id=:id");
-                $stmt->execute(['id' => $id]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                echo json_encode($user);
-            }
-            else {
+                if ($path_info[1] === 'count') {
+                    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM user");
+                    $stmt->execute();
+                    $count = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode($count);
+                } else {
+                    $id = intval($path_info[1]);
+                    $stmt = $pdo->prepare("SELECT * FROM user WHERE user_id=:id");
+                    $stmt->execute(['id' => $id]);
+                    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode($user);
+                }
+            } else {
                 $stmt = $pdo->prepare("SELECT * FROM user");
                 $stmt->execute();
                 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
                 echo json_encode($users);
             }
             
@@ -107,20 +111,38 @@ function handleReservation ($pdo, $request_method, $path_info) {
             }
             echo json_encode($json);
             break;
-        case 'GET' :
-            if(isset($path_info[1])) {
-                $id = intval($path_info[1]);
-                $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id WHERE reservation_id=:id");
-                $stmt->execute(['id' => $id]);
-                $reservation = $stmt->fetch(PDO::FETCH_ASSOC);
-                echo json_encode($reservation);
-            } else {
-                $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id");
-                $stmt->execute();
-                $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                echo json_encode($reservations);
-            }
-            break;
+            case 'GET' :
+                if(isset($path_info[1])) {
+                    if ($path_info[1] === 'count') {
+                        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM reservation");
+                        $stmt->execute();
+                        $count = $stmt->fetch(PDO::FETCH_ASSOC);
+                        echo json_encode($count);
+                        return;
+                    } 
+                    if($path_info[1] === 'sum') {
+                        $stmt = $pdo->prepare("SELECT SUM(reservation_nb_student) as sum_student, SUM(reservation_nb_normal) as sum_normal FROM reservation");
+                        $stmt->execute();
+                        $sums = $stmt->fetch(PDO::FETCH_ASSOC);
+                        echo json_encode($sums);
+                        return;
+                    }
+                    else {
+                        $id = intval($path_info[1]);
+                        $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id WHERE reservation_id=:id");
+                        $stmt->execute(['id' => $id]);
+                        $reservation = $stmt->fetch(PDO::FETCH_ASSOC);
+                        echo json_encode($reservation);
+                        return;
+                    }
+                } else {
+                    $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id");
+                    $stmt->execute();
+                    $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    echo json_encode($reservations);
+                    return;
+                }
+                break;
         
         case 'PUT' :
             $id = intval($path_info[1]);
