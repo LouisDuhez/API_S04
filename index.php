@@ -14,7 +14,6 @@ try {
     echo 'Connexion échouée : ' . $e->getMessage();
 }
 
-// Fonction pour vérifier le token JWT
 function verifyJWT() {
     // On vérifie si on reçoit un token
     if(isset($_SERVER['Authorization'])){
@@ -159,6 +158,7 @@ function handleUsers ($pdo, $request_method, $path_info) {
             
             break;
         case 'DELETE' : 
+            verifyJWT();
             $id = intval($path_info[1]);
             $stmt = $pdo->prepare("DELETE FROM user WHERE user_id=:id");
             $result = $stmt->execute(['id' => $id]);
@@ -208,6 +208,13 @@ function handleReservation ($pdo, $request_method, $path_info) {
                     echo json_encode($sums);
                     return;
                 }
+                if($path_info[1] === 'daily') {
+                    $stmt = $pdo->prepare("SELECT DATE(reservation_date) as date, COUNT(*) as count FROM reservation GROUP BY DATE(reservation_date)");
+                    $stmt->execute();
+                    $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    echo json_encode($reservations);
+                    return;
+                }
                 else {
                     $id = intval($path_info[1]);
                     $stmt = $pdo->prepare("SELECT * FROM reservation INNER JOIN user ON reservation.reservation_user_fk = user.user_id WHERE reservation_id=:id");
@@ -226,6 +233,7 @@ function handleReservation ($pdo, $request_method, $path_info) {
             break;
         
         case 'PUT' :
+            verifyJWT();
             $id = intval($path_info[1]);
             $date = $_POST["date"];
             $nbStudent = $_POST["student"];
@@ -245,6 +253,7 @@ function handleReservation ($pdo, $request_method, $path_info) {
             break;
         
         case 'DELETE' :
+            verifyJWT();
             $id = intval($path_info[1]);
             $stmt = $pdo->prepare("DELETE FROM reservation WHERE reservation_id=:id");
             $result = $stmt->execute(['id' => $id]);
