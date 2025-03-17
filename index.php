@@ -1,4 +1,16 @@
 <?php
+header("Access-Control-Allow-Origin: *"); // Permettre l'accès depuis n'importe quelle origine
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS"); // Permettre les méthodes HTTP spécifiées
+header("Access-Control-Allow-Headers: Content-Type, Authorization"); // Permettre les en-têtes spécifiés
+
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    // Répondre aux requêtes OPTIONS
+    header("Access-Control-Allow-Origin: *");
+    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+    exit(0);
+}
+
 require_once 'includes/config.php';
 require_once 'classes/JWT.php';
 
