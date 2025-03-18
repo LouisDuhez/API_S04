@@ -15,9 +15,9 @@ require_once 'includes/config.php';
 require_once 'classes/JWT.php';
 
 // identifiant de connexion à la base de données
-$dsn = 'mysql:host=localhost;dbname=marie_curie_db';
-$username = 'root';
-$password = '';
+$dsn = 'mysql:host=localhost;dbname=duhez_mcapi';
+$username = 'duhez_mcapi';
+$password = 'mcapi2025MMI';
 
 // Connexion à la base de données
 try {
@@ -101,13 +101,13 @@ function handleKey($pdo, $request_method) {
         $data = json_decode(file_get_contents('php://input'), true);
         if(isset($data['login']) && isset($data['mdp']) ) {
             if($data['login'] == LOGIN) {
-                if(password_verify(MDP, $data['mdp'])) {
+                if(password_verify($data['mdp'], password_hash(MDP, PASSWORD_DEFAULT))) {
                     $jwt = new JWT();
                     $token = $jwt->generate([
                         'typ' => 'JWT',
                         'alg' => 'HS256'
                         ],[],SECRET, 3600);
-                    echo json_encode(['token' => $token]);
+                    echo json_encode(['token' => $token]);  
                 }else {
                     http_response_code(401);
                     echo json_encode(['message' => 'Invalid mdp']);
@@ -189,12 +189,14 @@ function handleUsers ($pdo, $request_method, $path_info) {
 function handleReservation ($pdo, $request_method, $path_info) {
     switch($request_method) {
         case 'POST' :
-            $date = $_POST["date"];
-            $nbStudent = $_POST["student"];
-            $nbNormal = $_POST["normal"];
-            $user = $_POST["user"];
-            $stmt = $pdo->prepare("INSERT INTO reservation (reservation_date, reservation_nb_student, reservation_nb_normal, reservation_user_fk) VALUES (:date, :nbStudent, :nbNormal, :user)");
-            $result = $stmt->execute(['date' => $date, 'nbStudent' => $nbStudent, 'nbNormal' => $nbNormal, 'user' => $user]);
+            $date = $_POST["reservation_date"];
+            $nbStudent = $_POST["reservation_nb_student"];
+            $nbNormal = $_POST["reservation_nb_normal"];
+            $user = $_POST["reservation_user"];
+            $time = $_POST["reservation_time"];
+            $prix = $_POST["reservation_prix"];
+            $stmt = $pdo->prepare("INSERT INTO reservation (reservation_date, reservation_nb_student, reservation_nb_normal, reservation_user_fk, reservation_time, reservation_prix) VALUES (:date, :nbStudent, :nbNormal, :user, :time, :prix)");
+            $result = $stmt->execute(['date' => $date, 'nbStudent' => $nbStudent, 'nbNormal' => $nbNormal, 'user' => $user, 'time' => $time, 'prix' => $prix]);
 
             if($result) {
                 $json = array("status" => 200, "message" => "Reservation successfully inserted");
